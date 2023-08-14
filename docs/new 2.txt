@@ -1,0 +1,207 @@
+
+-------- SCRIPT CODE FIRST .NET --------
+
+// Clase comun para todas, contienen los campos de auditoria de cada tabla
+public class BaseEntity
+{
+    public DateTime CreatedAt { get; set; }
+    public string CreatedBy { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public string UpdatedBy { get; set; }
+}
+
+// Tabla donde se almacenan las categorias para el presupuesto
+public class Category : BaseEntity
+{
+    public int CategoryId { get; set; }
+    public string Name { get; set; }
+}
+
+// Tabla donde se almacenan las monedas a utilizar en los presupuestos, y su cambio a USD
+public class Currency : BaseEntity
+{
+    public int CurrencyId { get; set; }
+    public string Name { get; set; }
+    public string Symbol { get; set; }
+    public decimal UsdExchangeRate { get; set; } // 1 USD = UsdExhangeRate de la moneda ingresada
+}
+
+// Tabla donde se almacenan los presupuestos y se definen en que moneda se introduciran dichos presupuestos
+public class Budget : BaseEntity
+{
+    public int BudgetId { get; set; }
+    public DateTime Date { get; set; }
+    public int CurrencyId { get; set; }
+	public int TripId { get; set; }
+
+    // Relaciones
+    public virtual Currency Currency { get; set; }
+    public virtual ICollection<BudgetItem> Items { get; set; }
+	public virtual Trip Trip { get; set; }
+}
+
+// Tabla detalle de cada presupuesto
+public class BudgetItem : BaseEntity
+{
+    public int BudgetItemId { get; set; }
+    public int BudgetId { get; set; }
+    public int CategoryId { get; set; }
+    public string Description { get; set; }
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal Subtotal { get; set; }
+
+    // Relaciones
+    public virtual Budget Budget { get; set; }
+    public virtual Category Category { get; set; }
+}
+
+// Tabla donde se almacenan los viajes, con fecha de inicio y finalizacion. 
+public class Trip : BaseEntity
+{
+    public int TripId { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+
+    // Relaciones
+    public virtual ICollection<TripDay> TripDays { get; set; }
+	public virtual ICollection<Budget> Budgets { get; set; }
+}
+
+public class TripDay : BaseEntity
+{
+    public int TripDayId { get; set; }
+    public int TripId { get; set; }
+    public int DayOrderNumber { get; set; } // 1,2,3,4,5,6,7,8,9....
+    public DateTime Date { get; set; }
+
+    // Relaciones
+    public virtual Trip Trip { get; set; }
+    public virtual ICollection<DayPlanning> DayPlannings { get; set; }
+}
+
+public class DayPlanning : BaseEntity
+{
+    public int DayPlanningId { get; set; }
+    public int TripDayId { get; set; }
+    public string CodeUtc { get; set; }
+    public DateTime Time { get; set; } // Hora de realización
+    public TimeSpan? Duration { get; set; } // Duración, es opcional
+    public string Activity { get; set; }
+    public int CountryId { get; set; } // País que estoy visitando
+
+    public virtual TripDay TripDay { get; set; }
+    public virtual Country Country { get; set; }
+}
+
+public class Country
+{
+    public int CountryId { get; set; }
+    public string Name { get; set; }
+}
+
+-------- SCRIPT SQL --------
+
+-- Crear tabla de Categorías
+CREATE TABLE Category (
+    CategoryId INT PRIMARY KEY,
+    Name VARCHAR(255),
+    CreatedAt DATETIME,
+    CreatedBy VARCHAR(255),
+    UpdatedAt DATETIME,
+    UpdatedBy VARCHAR(255)
+);
+
+-- Crear tabla de Monedas
+CREATE TABLE Currency (
+    CurrencyId INT PRIMARY KEY,
+    Name VARCHAR(255),
+    Symbol VARCHAR(10),
+    UsdExchangeRate DECIMAL(18, 6),
+    CreatedAt DATETIME,
+    CreatedBy VARCHAR(255),
+    UpdatedAt DATETIME,
+    UpdatedBy VARCHAR(255)
+);
+
+-- Crear tabla de Presupuestos
+CREATE TABLE Budget (
+    BudgetId INT PRIMARY KEY,
+    Date DATETIME,
+    CurrencyId INT,
+    TripId INT,
+    CreatedAt DATETIME,
+    CreatedBy VARCHAR(255),
+    UpdatedAt DATETIME,
+    UpdatedBy VARCHAR(255),
+    FOREIGN KEY (CurrencyId) REFERENCES Currency(CurrencyId),
+    FOREIGN KEY (TripId) REFERENCES Trip(TripId)
+);
+
+-- Crear tabla de Detalles de Presupuesto
+CREATE TABLE BudgetItem (
+    BudgetItemId INT PRIMARY KEY,
+    BudgetId INT,
+    CategoryId INT,
+    Description VARCHAR(255),
+    Quantity INT,
+    UnitPrice DECIMAL(18, 2),
+    Subtotal DECIMAL(18, 2),
+    CreatedAt DATETIME,
+    CreatedBy VARCHAR(255),
+    UpdatedAt DATETIME,
+    UpdatedBy VARCHAR(255),
+    FOREIGN KEY (BudgetId) REFERENCES Budget(BudgetId),
+    FOREIGN KEY (CategoryId) REFERENCES Category(CategoryId)
+);
+
+-- Crear tabla de Viajes
+CREATE TABLE Trip (
+    TripId INT PRIMARY KEY,
+    Name VARCHAR(255),
+    Description TEXT,
+    StartDate DATETIME,
+    EndDate DATETIME,
+    CreatedAt DATETIME,
+    CreatedBy VARCHAR(255),
+    UpdatedAt DATETIME,
+    UpdatedBy VARCHAR(255)
+);
+
+-- Crear tabla de Días de Viaje
+CREATE TABLE TripDay (
+    TripDayId INT PRIMARY KEY,
+    TripId INT,
+    DayOrderNumber INT,
+    Date DATETIME,
+    CreatedAt DATETIME,
+    CreatedBy VARCHAR(255),
+    UpdatedAt DATETIME,
+    UpdatedBy VARCHAR(255),
+    FOREIGN KEY (TripId) REFERENCES Trip(TripId)
+);
+
+-- Crear tabla de Planificación Diaria
+CREATE TABLE DayPlanning (
+    DayPlanningId INT PRIMARY KEY,
+    TripDayId INT,
+    CodeUtc VARCHAR(50),
+    Time DATETIME,
+    Duration TIME,
+    Activity VARCHAR(255),
+    CountryId INT,
+    CreatedAt DATETIME,
+    CreatedBy VARCHAR(255),
+    UpdatedAt DATETIME,
+    UpdatedBy VARCHAR(255),
+    FOREIGN KEY (TripDayId) REFERENCES TripDay(TripDayId),
+    FOREIGN KEY (CountryId) REFERENCES Country(CountryId)
+);
+
+-- Crear tabla de Países
+CREATE TABLE Country (
+    CountryId INT PRIMARY KEY,
+    Name VARCHAR(255)
+);
